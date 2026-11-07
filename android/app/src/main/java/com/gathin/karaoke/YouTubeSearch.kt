@@ -32,24 +32,31 @@ object YouTubeSearch {
                 .fromQuery(query, emptyList(), "")
             val extractor = ServiceList.YouTube.getSearchExtractor(handler)
             extractor.fetchPage()
-            extractor.initialPage.items
-                .filterIsInstance<StreamInfoItem>()
-                .asSequence()
-                .filter { it.duration in 45..1200 }
-                .mapNotNull { item ->
-                    val videoId = videoIdOf(item.url) ?: return@mapNotNull null
-                    val thumb = "https://i.ytimg.com/vi/$videoId/mqdefault.jpg"
-                    YouTubeTrack(
-                        videoId = videoId,
-                        title = item.name ?: "",
-                        uploader = item.uploaderName ?: "YouTube",
-                        duration = item.duration,
-                        thumbnail = thumb,
+
+            val tracks = mutableListOf<YouTubeTrack>()
+            var page = extractor.initialPage
+            var pageCount = 0
+            while (true) {
+                for (item in page.items.filterIsInstance<StreamInfoItem>()) {
+                    if (item.duration !in 45..1200) continue
+                    val videoId = videoIdOf(item.url) ?: continue
+                    if (tracks.any { it.videoId == videoId }) continue
+                    tracks.add(
+                        YouTubeTrack(
+                            videoId = videoId,
+                            title = item.name ?: "",
+                            uploader = item.uploaderName ?: "YouTube",
+                            duration = item.duration,
+                            thumbnail = "https://i.ytimg.com/vi/$videoId/mqdefault.jpg",
+                        )
                     )
+                    if (tracks.size >= limit) return tracks
                 }
-                .distinctBy { it.videoId }
-                .take(limit)
-                .toList()
+                if (!page.hasNextPage() || pageCount >= 4) break
+                page = extractor.getPage(page.nextPage)
+                pageCount++
+            }
+            tracks
         } catch (exc: Exception) {
             emptyList()
         }

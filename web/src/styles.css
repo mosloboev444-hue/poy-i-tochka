@@ -4349,7 +4349,7 @@
 
 .karaoke-row {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 58px 38px;
+  grid-template-columns: 42px minmax(0, 1fr) 62px 58px 38px;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -4412,6 +4412,30 @@
 .karaoke-main i {
   opacity: 0.5;
   font-style: normal;
+}
+
+.karaoke-source {
+  justify-self: start;
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.karaoke-source.youtube {
+  color: #ffd4dc;
+  background: rgba(255, 77, 109, 0.12);
+  border-color: rgba(255, 77, 109, 0.28);
+}
+
+.karaoke-source.rutube {
+  color: #d8fbff;
+  background: rgba(34, 211, 238, 0.1);
+  border-color: rgba(34, 211, 238, 0.28);
 }
 
 .karaoke-duration {
@@ -4486,7 +4510,7 @@
   }
 
   .karaoke-row {
-    grid-template-columns: 30px minmax(0, 1fr) 42px 28px;
+    grid-template-columns: 30px minmax(0, 1fr) 48px 40px 28px;
     gap: 7px;
     padding: 7px 8px;
     min-height: 50px;
@@ -4502,6 +4526,11 @@
 
   .karaoke-main > span {
     font-size: 0.63rem;
+  }
+
+  .karaoke-source {
+    padding: 2px 5px;
+    font-size: 0.5rem;
   }
 
   .karaoke-duration {

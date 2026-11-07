@@ -220,11 +220,10 @@ export default function AllKaraokePage({ onOpenTrack }: Props) {
                 </span>
                 <span className="karaoke-main">
                   <strong>{displayTitle(track)}</strong>
-                  <span>
-                    {track.artist || "Неизвестный исполнитель"}
-                    <i>·</i>
-                    {track.source === "rutube" ? "RuTube" : track.source === "youtube" ? "YouTube" : track.source}
-                  </span>
+                  <span>{track.artist || "Неизвестный исполнитель"}</span>
+                </span>
+                <span className={`karaoke-source ${track.source === "rutube" ? "rutube" : "youtube"}`}>
+                  {track.source === "rutube" ? "RuTube" : "YouTube"}
                 </span>
                 <span className="karaoke-duration">{formatDuration(track.duration)}</span>
                 <span className="karaoke-play">

@@ -126,7 +126,7 @@ class LocalServer(context: Context, port: Int = 8787) : NanoHTTPD(port) {
                 val json = toJson(youtubeTrack(track))
                 if (results.none { it.optString("id") == json.optString("id") }) results.add(json)
             }
-            for (track in RuTubeApi.search(query, 6)) {
+            for (track in RuTubeApi.search(query, 10)) {
                 val json = toJson(rutubeTrack(track))
                 if (results.none { it.optString("id") == json.optString("id") }) results.add(json)
             }
