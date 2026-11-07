@@ -1,7 +1,20 @@
-import { useEffect, useRef, useState } from "react";
-import { ListMusic, Loader2, Music2, Play, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowDownAZ,
+  ArrowUpAZ,
+  ChevronLeft,
+  ChevronRight,
+  ListMusic,
+  Loader2,
+  Music2,
+  Play,
+  RefreshCw
+} from "lucide-react";
 import { getAllKaraoke } from "../api";
 import type { Track } from "../types";
+
+const PAGE_SIZE = 20;
+const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
 
 type Props = {
   onOpenTrack: (track: Track) => void;
@@ -29,11 +42,15 @@ export default function AllKaraokePage({ onOpenTrack }: Props) {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [ascending, setAscending] = useState(true);
   const cache = useRef(new Map<Lang, Track[]>());
   const requestId = useRef(0);
+  const listTopRef = useRef<HTMLDivElement | null>(null);
 
   async function load(nextLang: Lang, force = false) {
     const id = ++requestId.current;
+    setPage(1);
     const cached = cache.current.get(nextLang);
     if (cached && !force) {
       setTracks(cached);
@@ -61,9 +78,45 @@ export default function AllKaraokePage({ onOpenTrack }: Props) {
     void load(lang);
   }, [lang]);
 
+  const sortedTracks = useMemo(() => {
+    return [...tracks].sort((left, right) => {
+      const result = collator.compare(displayTitle(left), displayTitle(right));
+      return ascending ? result : -result;
+    });
+  }, [tracks, ascending]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedTracks.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageTracks = sortedTracks.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const firstOnPage = sortedTracks.length ? (currentPage - 1) * PAGE_SIZE + 1 : 0;
+  const lastOnPage = Math.min(currentPage * PAGE_SIZE, sortedTracks.length);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   function choose(nextLang: Lang) {
     if (nextLang === lang) return;
     setLang(nextLang);
+    setPage(1);
+    scrollListTop();
+  }
+
+  function toggleSort() {
+    setAscending((value) => !value);
+    setPage(1);
+    scrollListTop();
+  }
+
+  function goToPage(nextPage: number) {
+    setPage(Math.max(1, Math.min(totalPages, nextPage)));
+    scrollListTop();
+  }
+
+  function scrollListTop() {
+    window.setTimeout(() => {
+      listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
   }
 
   return (
@@ -102,20 +155,30 @@ export default function AllKaraokePage({ onOpenTrack }: Props) {
         </button>
       </div>
 
-      <div className="karaoke-list-head">
+      <div className="karaoke-list-head" ref={listTopRef}>
         <span>
           <ListMusic size={17} />
-          {loading ? "Ищем караоке…" : `${tracks.length} песен`}
+          {loading
+            ? "Ищем караоке…"
+            : tracks.length
+              ? `${firstOnPage}–${lastOnPage} из ${tracks.length}`
+              : "0 песен"}
         </span>
-        <button
-          className="ghost-button karaoke-refresh"
-          onClick={() => void load(lang, true)}
-          disabled={loading}
-          type="button"
-        >
-          <RefreshCw className={loading ? "spin" : ""} size={15} />
-          Обновить
-        </button>
+        <div className="karaoke-list-actions">
+          <button className="ghost-button karaoke-sort" onClick={toggleSort} type="button">
+            {ascending ? <ArrowDownAZ size={15} /> : <ArrowUpAZ size={15} />}
+            {ascending ? "А–Я" : "Я–А"}
+          </button>
+          <button
+            className="ghost-button karaoke-refresh"
+            onClick={() => void load(lang, true)}
+            disabled={loading}
+            type="button"
+          >
+            <RefreshCw className={loading ? "spin" : ""} size={15} />
+            Обновить
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -143,30 +206,60 @@ export default function AllKaraokePage({ onOpenTrack }: Props) {
       )}
 
       {!error && !loading && tracks.length > 0 && (
-        <div className="karaoke-list">
-          {tracks.map((track, index) => (
-            <button
-              className="karaoke-row"
-              key={track.id}
-              onClick={() => onOpenTrack(track)}
-              type="button"
-            >
-              <span className="karaoke-number">{String(index + 1).padStart(2, "0")}</span>
-              <span className="karaoke-main">
-                <strong>{displayTitle(track)}</strong>
-                <span>
-                  {track.artist || "Неизвестный исполнитель"}
-                  <i>·</i>
-                  {track.source === "rutube" ? "RuTube" : track.source === "youtube" ? "YouTube" : track.source}
+        <>
+          <div className="karaoke-list">
+            {pageTracks.map((track, index) => (
+              <button
+                className="karaoke-row"
+                key={track.id}
+                onClick={() => onOpenTrack(track)}
+                type="button"
+              >
+                <span className="karaoke-number">
+                  {String((currentPage - 1) * PAGE_SIZE + index + 1).padStart(2, "0")}
                 </span>
+                <span className="karaoke-main">
+                  <strong>{displayTitle(track)}</strong>
+                  <span>
+                    {track.artist || "Неизвестный исполнитель"}
+                    <i>·</i>
+                    {track.source === "rutube" ? "RuTube" : track.source === "youtube" ? "YouTube" : track.source}
+                  </span>
+                </span>
+                <span className="karaoke-duration">{formatDuration(track.duration)}</span>
+                <span className="karaoke-play">
+                  <Play size={17} fill="currentColor" />
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="karaoke-pager">
+              <button
+                className="ghost-button"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+                type="button"
+              >
+                <ChevronLeft size={16} />
+                Назад
+              </button>
+              <span>
+                Страница <strong>{currentPage}</strong> из {totalPages}
               </span>
-              <span className="karaoke-duration">{formatDuration(track.duration)}</span>
-              <span className="karaoke-play">
-                <Play size={17} fill="currentColor" />
-              </span>
-            </button>
-          ))}
-        </div>
+              <button
+                className="ghost-button"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                type="button"
+              >
+                Дальше
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {!error && !loading && tracks.length === 0 && (
