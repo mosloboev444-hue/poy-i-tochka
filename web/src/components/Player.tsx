@@ -133,6 +133,22 @@ export default function Player({ track, onClose, onTrackUpdated, standalone, onF
     setSongPitch(savedPitch ? Number(savedPitch) || 1 : 1);
   }, [track.id]);
 
+  const canFallbackToVideo =
+    (track.source === "youtube" && Boolean(track.video_id)) ||
+    ((track.source === "rutube" || track.source === "vk") && Boolean(track.embed_url));
+
+  useEffect(() => {
+    if (mode !== "text" || lyricsLoading || !canFallbackToVideo) return;
+    const hasText = Boolean(
+      (lyrics?.syncedLyrics || "").trim() || (lyrics?.plainLyrics || "").trim()
+    );
+    if (hasText) return;
+    const timer = window.setTimeout(() => {
+      onModeChange?.("video");
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [mode, lyricsLoading, lyrics, canFallbackToVideo, onModeChange]);
+
   function adjustSongSpeed(delta: number) {
     setSongSpeed((previous) => {
       const next = Math.max(0.75, Math.min(1.25, Math.round((previous + delta) * 100) / 100));

@@ -196,6 +196,7 @@ export default function App() {
   }
 
   function openTrack(track: Track) {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setResultsOpen(false);
     setSelected(track);
     recordHistory(track);
