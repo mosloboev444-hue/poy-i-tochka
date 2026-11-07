@@ -13,6 +13,7 @@ export type LyricsSettings = {
 export type View =
   | "home"
   | "search"
+  | "allKaraoke"
   | "library"
   | "favorites"
   | "history"

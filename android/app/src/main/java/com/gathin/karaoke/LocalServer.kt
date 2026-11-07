@@ -19,6 +19,7 @@ class LocalServer(context: Context, port: Int = 8787) : NanoHTTPD(port) {
     private val searchPool = Executors.newFixedThreadPool(4)
     private val searchCache = ConcurrentHashMap<String, Pair<Long, String>>()
     private val lyricsCache = ConcurrentHashMap<String, Pair<Long, JSONArray>>()
+    private val karaokeCache = ConcurrentHashMap<String, Pair<Long, JSONArray>>()
 
     override fun serve(session: IHTTPSession): Response {
         return try {
@@ -30,6 +31,7 @@ class LocalServer(context: Context, port: Int = 8787) : NanoHTTPD(port) {
                 session.uri == "/api/search" -> json(search(session))
                 session.uri == "/api/search/youtube" -> json(searchProvider(session, "youtube"))
                 session.uri == "/api/search/rutube" -> json(searchProvider(session, "rutube"))
+                session.uri == "/api/karaoke" -> json(karaokeCatalog(session))
                 session.uri == "/api/lyrics" -> lyrics(session)
                 session.uri == "/api/link" -> link(session)
                 session.uri == "/api/catalog" -> json(JSONObject().put("tracks", CatalogStore.tracks(appContext)))
@@ -98,6 +100,41 @@ class LocalServer(context: Context, port: Int = 8787) : NanoHTTPD(port) {
             put("duration", info.duration)
             put("title", info.title)
         })
+    }
+
+    private fun karaokeCatalog(session: IHTTPSession): JSONObject {
+        val lang = if (session.parameters["lang"]?.firstOrNull() == "en") "en" else "ru"
+        val limit = (session.parameters["limit"]?.firstOrNull()?.toIntOrNull() ?: 80).coerceIn(20, 120)
+        val refresh = session.parameters["refresh"]?.firstOrNull() == "1"
+        val cacheKey = "$lang:$limit"
+        if (!refresh) {
+            karaokeCache[cacheKey]?.let { (savedAt, cached) ->
+                if (System.currentTimeMillis() - savedAt < 10 * 60_000L) {
+                    return JSONObject().put("lang", lang).put("results", cached)
+                }
+            }
+        }
+
+        val queries = if (lang == "ru") {
+            listOf("караоке русские песни", "караоке хиты", "караоке ретро")
+        } else {
+            listOf("karaoke english songs", "karaoke hits", "karaoke 80s 90s")
+        }
+        val results = mutableListOf<JSONObject>()
+        for (query in queries) {
+            for (track in YouTubeSearch.search(query, 40)) {
+                val json = toJson(youtubeTrack(track))
+                if (results.none { it.optString("id") == json.optString("id") }) results.add(json)
+            }
+            for (track in RuTubeApi.search(query, 6)) {
+                val json = toJson(rutubeTrack(track))
+                if (results.none { it.optString("id") == json.optString("id") }) results.add(json)
+            }
+            if (results.size >= limit) break
+        }
+        val payload = JSONArray(results.take(limit))
+        karaokeCache[cacheKey] = System.currentTimeMillis() to payload
+        return JSONObject().put("lang", lang).put("results", payload)
     }
 
     private fun cachedLyrics(query: String): JSONArray {

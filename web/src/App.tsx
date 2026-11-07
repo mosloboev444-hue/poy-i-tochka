@@ -15,6 +15,7 @@ import {
 import { getHealth, searchTracksByProvider } from "./api";
 import type { LyricsSettings, PlayerMode, Track, View } from "./types";
 import AboutPage from "./components/AboutPage";
+import AllKaraokePage from "./components/AllKaraokePage";
 import Dashboard from "./components/Dashboard";
 import ImportPanel from "./components/ImportPanel";
 import LibraryPage from "./components/LibraryPage";
@@ -67,6 +68,7 @@ function store(key: string, value: Track[]) {
 const PAGE_TITLES: Record<View, string> = {
   home: "Главная",
   search: "Каталог",
+  allKaraoke: "Всё караоке",
   library: "Библиотека",
   favorites: "Избранное",
   history: "История",
@@ -400,8 +402,18 @@ export default function App() {
                 window.setTimeout(() => searchRef.current?.focus(), 120);
               }}
               onNavigate={(target) => setView(target)}
+              onAllKaraoke={() => setView("allKaraoke")}
               onSearch={(value) => void runSearch(value)}
               onOpenTrack={openTrack}
+            />
+          )}
+
+          {view === "allKaraoke" && (
+            <AllKaraokePage
+              onOpenTrack={(track) => {
+                setPlayerMode("video");
+                openTrack(track);
+              }}
             />
           )}
 
@@ -632,6 +644,7 @@ export default function App() {
       {lastPlayed &&
         view !== "home" &&
         view !== "library" &&
+        view !== "allKaraoke" &&
         view !== "settings" &&
         view !== "about" &&
         !resultsOpen && (

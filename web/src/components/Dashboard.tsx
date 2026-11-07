@@ -1,4 +1,4 @@
-import { ChevronRight, Heart, Mic2, Music2, Play, Sparkles, Trophy } from "lucide-react";
+import { ChevronRight, Heart, ListMusic, Mic2, Music2, Play, Sparkles, Trophy } from "lucide-react";
 import type { Track } from "../types";
 
 type Props = {
@@ -6,6 +6,7 @@ type Props = {
   history: Track[];
   onSing: () => void;
   onNavigate: (view: "search" | "favorites" | "history") => void;
+  onAllKaraoke: () => void;
   onSearch: (query: string) => void;
   onOpenTrack: (track: Track) => void;
 };
@@ -46,6 +47,7 @@ export default function Dashboard({
   history,
   onSing,
   onNavigate,
+  onAllKaraoke,
   onSearch,
   onOpenTrack
 }: Props) {
@@ -93,6 +95,12 @@ export default function Dashboard({
           <Heart size={34} />
           <strong>Избранные песни</strong>
           <span>{favoritesCount > 0 ? `Сохранено: ${favoritesCount}` : "Пока пусто — добавь сердцем"}</span>
+          <ChevronRight className="quick-arrow" size={22} />
+        </button>
+        <button className="quick-card quick-purple" onClick={onAllKaraoke} type="button">
+          <ListMusic size={34} />
+          <strong>Всё караоке</strong>
+          <span>Русские и иностранные списком</span>
           <ChevronRight className="quick-arrow" size={22} />
         </button>
         <button
