@@ -37,9 +37,12 @@ export function getLocalCatalog(): Promise<{ tracks: Track[] }> {
 
 export function getAllKaraoke(
   lang: "ru" | "en",
+  batch = 0,
   refresh = false
-): Promise<{ lang: string; results: Track[] }> {
-  return request(`/api/karaoke?lang=${lang}&limit=100${refresh ? "&refresh=1" : ""}`);
+): Promise<{ lang: string; batch: number; hasMore: boolean; results: Track[] }> {
+  return request(
+    `/api/karaoke?lang=${lang}&limit=100&batch=${batch}${refresh ? "&refresh=1" : ""}`
+  );
 }
 
 export function deleteLocalPack(packId: string): Promise<{ ok: boolean }> {

@@ -102,24 +102,46 @@ class LocalServer(context: Context, port: Int = 8787) : NanoHTTPD(port) {
         })
     }
 
+    private fun karaokeQueries(lang: String, batch: Int): List<String> {
+        val groups = if (lang == "ru") {
+            listOf(
+                listOf("караоке русские песни", "караоке хиты", "караоке ретро"),
+                listOf("караоке 90-х", "караоке 80-х", "караоке шансон"),
+                listOf("караоке рок", "караоке поп", "караоке военные песни"),
+                listOf("караоке застольные", "караоке новогодние", "караоке любимые"),
+                listOf("караоке народные", "караоке эстрада", "караоке дворовые")
+            )
+        } else {
+            listOf(
+                listOf("karaoke english songs", "karaoke hits", "karaoke 80s 90s"),
+                listOf("karaoke rock", "karaoke pop", "karaoke love songs"),
+                listOf("karaoke country", "karaoke disney", "karaoke musicals"),
+                listOf("karaoke christmas", "karaoke duets", "karaoke classics"),
+                listOf("karaoke acoustic", "karaoke party", "karaoke ballads")
+            )
+        }
+        return groups.getOrElse(batch) { emptyList() }
+    }
+
     private fun karaokeCatalog(session: IHTTPSession): JSONObject {
         val lang = if (session.parameters["lang"]?.firstOrNull() == "en") "en" else "ru"
-        val limit = (session.parameters["limit"]?.firstOrNull()?.toIntOrNull() ?: 80).coerceIn(20, 120)
+        val limit = (session.parameters["limit"]?.firstOrNull()?.toIntOrNull() ?: 100).coerceIn(20, 120)
+        val batch = (session.parameters["batch"]?.firstOrNull()?.toIntOrNull() ?: 0).coerceIn(0, 4)
         val refresh = session.parameters["refresh"]?.firstOrNull() == "1"
-        val cacheKey = "$lang:$limit"
+        val cacheKey = "$lang:$limit:$batch"
         if (!refresh) {
             karaokeCache[cacheKey]?.let { (savedAt, cached) ->
                 if (System.currentTimeMillis() - savedAt < 10 * 60_000L) {
-                    return JSONObject().put("lang", lang).put("results", cached)
+                    return JSONObject()
+                        .put("lang", lang)
+                        .put("batch", batch)
+                        .put("hasMore", batch < 4)
+                        .put("results", cached)
                 }
             }
         }
 
-        val queries = if (lang == "ru") {
-            listOf("караоке русские песни", "караоке хиты", "караоке ретро")
-        } else {
-            listOf("karaoke english songs", "karaoke hits", "karaoke 80s 90s")
-        }
+        val queries = karaokeQueries(lang, batch)
         val results = mutableListOf<JSONObject>()
         for (query in queries) {
             for (track in YouTubeSearch.search(query, 40)) {
@@ -134,7 +156,11 @@ class LocalServer(context: Context, port: Int = 8787) : NanoHTTPD(port) {
         }
         val payload = JSONArray(results.take(limit))
         karaokeCache[cacheKey] = System.currentTimeMillis() to payload
-        return JSONObject().put("lang", lang).put("results", payload)
+        return JSONObject()
+            .put("lang", lang)
+            .put("batch", batch)
+            .put("hasMore", batch < 4)
+            .put("results", payload)
     }
 
     private fun cachedLyrics(query: String): JSONArray {

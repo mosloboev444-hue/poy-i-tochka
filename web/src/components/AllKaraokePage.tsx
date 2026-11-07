@@ -8,7 +8,9 @@ import {
   Loader2,
   Music2,
   Play,
-  RefreshCw
+  Plus,
+  RefreshCw,
+  Search
 } from "lucide-react";
 import { getAllKaraoke } from "../api";
 import type { Track } from "../types";
@@ -16,11 +18,18 @@ import type { Track } from "../types";
 const PAGE_SIZE = 20;
 const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
 
+type Lang = "ru" | "en";
+
 type Props = {
   onOpenTrack: (track: Track) => void;
+  onSearch: (query: string) => void;
 };
 
-type Lang = "ru" | "en";
+type CacheEntry = {
+  tracks: Track[];
+  batch: number;
+  hasMore: boolean;
+};
 
 function displayTitle(track: Track): string {
   const raw = track.title || track.raw_title || "Без названия";
@@ -37,40 +46,89 @@ function formatDuration(seconds?: number | null): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
-export default function AllKaraokePage({ onOpenTrack }: Props) {
+export default function AllKaraokePage({ onOpenTrack, onSearch }: Props) {
   const [lang, setLang] = useState<Lang>("ru");
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [batch, setBatch] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [moreError, setMoreError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [ascending, setAscending] = useState(true);
-  const cache = useRef(new Map<Lang, Track[]>());
+  const [search, setSearch] = useState("");
+  const cache = useRef(new Map<Lang, CacheEntry>());
   const requestId = useRef(0);
   const listTopRef = useRef<HTMLDivElement | null>(null);
+
+  function scrollListTop() {
+    window.setTimeout(() => {
+      listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }
+
+  function applyEntry(nextLang: Lang, entry: CacheEntry) {
+    setTracks(entry.tracks);
+    setBatch(entry.batch);
+    setHasMore(entry.hasMore);
+    setLoading(false);
+    setError(null);
+    cache.current.set(nextLang, entry);
+  }
 
   async function load(nextLang: Lang, force = false) {
     const id = ++requestId.current;
     setPage(1);
+    setSearch("");
+    setMoreError(null);
+    setLoadingMore(false);
     const cached = cache.current.get(nextLang);
     if (cached && !force) {
-      setTracks(cached);
-      setLoading(false);
-      setError(null);
+      applyEntry(nextLang, cached);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const data = await getAllKaraoke(nextLang, force);
+      const data = await getAllKaraoke(nextLang, 0, force);
       if (id !== requestId.current) return;
-      cache.current.set(nextLang, data.results);
-      setTracks(data.results);
+      applyEntry(nextLang, {
+        tracks: data.results,
+        batch: data.batch,
+        hasMore: data.hasMore
+      });
     } catch (exc) {
       if (id !== requestId.current) return;
       setTracks([]);
+      setHasMore(false);
       setError(exc instanceof Error ? exc.message : "Не удалось получить список");
+      setLoading(false);
+    }
+  }
+
+  async function loadMore() {
+    if (loading || loadingMore || !hasMore) return;
+    const nextBatch = batch + 1;
+    const id = ++requestId.current;
+    setLoadingMore(true);
+    setMoreError(null);
+    try {
+      const data = await getAllKaraoke(lang, nextBatch, false);
+      if (id !== requestId.current) return;
+      const merged = [...tracks];
+      for (const track of data.results) {
+        if (!merged.some((item) => item.id === track.id)) merged.push(track);
+      }
+      const entry = { tracks: merged, batch: data.batch, hasMore: data.hasMore };
+      setTracks(merged);
+      setBatch(data.batch);
+      setHasMore(data.hasMore);
+      cache.current.set(lang, entry);
+    } catch (exc) {
+      setMoreError(exc instanceof Error ? exc.message : "Не удалось загрузить ещё");
     } finally {
-      if (id === requestId.current) setLoading(false);
+      if (id === requestId.current) setLoadingMore(false);
     }
   }
 
@@ -78,12 +136,20 @@ export default function AllKaraokePage({ onOpenTrack }: Props) {
     void load(lang);
   }, [lang]);
 
+  const filteredTracks = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return tracks;
+    return tracks.filter((track) =>
+      `${displayTitle(track)} ${track.artist || ""}`.toLowerCase().includes(needle)
+    );
+  }, [tracks, search]);
+
   const sortedTracks = useMemo(() => {
-    return [...tracks].sort((left, right) => {
+    return [...filteredTracks].sort((left, right) => {
       const result = collator.compare(displayTitle(left), displayTitle(right));
       return ascending ? result : -result;
     });
-  }, [tracks, ascending]);
+  }, [filteredTracks, ascending]);
 
   const totalPages = Math.max(1, Math.ceil(sortedTracks.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -111,12 +177,6 @@ export default function AllKaraokePage({ onOpenTrack }: Props) {
   function goToPage(nextPage: number) {
     setPage(Math.max(1, Math.min(totalPages, nextPage)));
     scrollListTop();
-  }
-
-  function scrollListTop() {
-    window.setTimeout(() => {
-      listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 0);
   }
 
   return (
@@ -155,14 +215,39 @@ export default function AllKaraokePage({ onOpenTrack }: Props) {
         </button>
       </div>
 
+      <div className="karaoke-search-row">
+        <label className="karaoke-search">
+          <Search size={17} />
+          <input
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Найти в загруженном списке"
+          />
+        </label>
+        {search.trim() && (
+          <button
+            className="ghost-button karaoke-search-everywhere"
+            onClick={() => onSearch(`${search.trim()} караоке`)}
+            type="button"
+          >
+            Искать везде
+          </button>
+        )}
+      </div>
+
       <div className="karaoke-list-head" ref={listTopRef}>
         <span>
           <ListMusic size={17} />
           {loading
             ? "Ищем караоке…"
-            : tracks.length
-              ? `${firstOnPage}–${lastOnPage} из ${tracks.length}`
-              : "0 песен"}
+            : search.trim()
+              ? `${sortedTracks.length} найдено`
+              : tracks.length
+                ? `${firstOnPage}–${lastOnPage} из ${tracks.length}`
+                : "0 песен"}
         </span>
         <div className="karaoke-list-actions">
           <button className="ghost-button karaoke-sort" onClick={toggleSort} type="button">
@@ -205,7 +290,7 @@ export default function AllKaraokePage({ onOpenTrack }: Props) {
         </div>
       )}
 
-      {!error && !loading && tracks.length > 0 && (
+      {!error && !loading && sortedTracks.length > 0 && (
         <>
           <div className="karaoke-list">
             {pageTracks.map((track, index) => (
@@ -258,13 +343,28 @@ export default function AllKaraokePage({ onOpenTrack }: Props) {
               </button>
             </div>
           )}
+
+          {hasMore && (
+            <div className="karaoke-load-more">
+              {moreError && <span className="form-error">{moreError}</span>}
+              <button className="ghost-button" onClick={() => void loadMore()} disabled={loadingMore} type="button">
+                {loadingMore ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
+                {loadingMore ? "Загружаем ещё…" : "Загрузить ещё"}
+              </button>
+            </div>
+          )}
         </>
       )}
 
-      {!error && !loading && tracks.length === 0 && (
+      {!error && !loading && sortedTracks.length === 0 && (
         <div className="empty-panel">
           <ListMusic size={36} />
-          <p>Ничего не нашлось. Попробуй обновить список.</p>
+          <p>{search.trim() ? "В загруженном списке ничего нет." : "Ничего не нашлось. Попробуй обновить список."}</p>
+          {search.trim() && (
+            <button className="primary-button" onClick={() => onSearch(`${search.trim()} караоке`)} type="button">
+              Искать в YouTube и RuTube
+            </button>
+          )}
         </div>
       )}
     </section>

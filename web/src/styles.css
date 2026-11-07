@@ -4276,6 +4276,56 @@
   font-size: 0.7rem;
 }
 
+.karaoke-search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.karaoke-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--muted);
+}
+
+.karaoke-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.karaoke-search-everywhere {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  font-size: 0.68rem;
+}
+
+.karaoke-load-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.karaoke-load-more .ghost-button {
+  padding: 9px 14px;
+  font-size: 0.72rem;
+}
+
 .karaoke-list-head {
   display: flex;
   align-items: center;
@@ -4489,6 +4539,15 @@
   .karaoke-list-actions {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .karaoke-search-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .karaoke-search-everywhere {
+    align-self: flex-start;
   }
 
   .karaoke-pager {

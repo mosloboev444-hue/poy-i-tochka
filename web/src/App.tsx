@@ -415,6 +415,7 @@ export default function App() {
                 setPlayerMode("video");
                 openTrack(track);
               }}
+              onSearch={(value) => void runSearch(value)}
             />
           )}
 
