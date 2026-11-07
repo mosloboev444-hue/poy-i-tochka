@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Пой и Точка</string>
+    <string name="brand">Пой и Точка</string>
+    <string name="tagline">КАРАОКЕ С ВСТРОЕННЫМ VPN</string>
+    <string name="vpn_off">VPN выключен</string>
+    <string name="vpn_on">VPN подключён</string>
+    <string name="vpn_connecting">Подключаем AmneziaWG…</string>
+    <string name="connect">Подключить VPN</string>
+    <string name="disconnect">Отключить VPN</string>
+    <string name="import_config">Импортировать .conf</string>
+    <string name="open_karaoke">Открыть караоке</string>
+    <string name="no_configs">Конфиги не найдены. Импортируй .conf или положи файлы в assets/vpn.</string>
+    <string name="note">AmneziaWG работает локально. LAN остаётся доступной, интернет и YouTube идут через VPN.</string>
+    <string name="vpn_permission_denied">Разрешение VPN не выдано</string>
+    <string name="vpn_error">Не удалось подключить VPN</string>
+</resources>
